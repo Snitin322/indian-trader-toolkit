@@ -9,6 +9,7 @@ from core.types import ScanParams
 from integrations.kite import client as kite_client
 from integrations.kite import historical, instruments
 from integrations.kite.env import KiteConfigError
+from integrations.kite.links import chart_url
 from integrations.nse import index_universes
 from storage.repositories import index_constituents_repo, scan_results_repo, user_config_repo
 
@@ -17,6 +18,9 @@ from storage.repositories import index_constituents_repo, scan_results_repo, use
 # that this adds negligible time; it matters for the 50-500 symbol
 # index/sector universes).
 _PACING_SECONDS_BETWEEN_FETCHES = 0.34
+
+
+_CHART_COLUMN_CONFIG = {"Chart": st.column_config.LinkColumn(display_text="Open chart")}
 
 st.title("Scanner")
 user_id = session.require_login()
@@ -151,6 +155,8 @@ if run_clicked:
                 )
                 setup = orb_breakout(symbol, exchange, params.orb_watch_interval, bars, params)
                 hits = [setup] if setup else []
+            for h in hits:
+                h.details["instrument_token"] = token
             all_hits.extend(hits)
         except Exception as exc:
             failed.append((symbol, str(exc)))
@@ -175,10 +181,12 @@ if run_clicked:
                     "Symbol": h.symbol,
                     "Setup": h.setup_type,
                     "As of": h.as_of,
-                    **h.details,
+                    "Chart": chart_url(h.exchange, h.symbol, h.details.get("instrument_token")),
+                    **{k: v for k, v in h.details.items() if k != "instrument_token"},
                 }
                 for h in all_hits
             ],
+            column_config=_CHART_COLUMN_CONFIG,
             use_container_width=True,
         )
     else:
@@ -190,10 +198,14 @@ recent = scan_results_repo.get_latest_results(user_id, limit=50)
 if recent:
     st.dataframe(
         [
-            {"Symbol": r["symbol"], "Exchange": r["exchange"], "Interval": r["interval"],
-             "Setup": r["setup_type"], "As of": r["scan_run_at"]}
+            {
+                "Symbol": r["symbol"], "Exchange": r["exchange"], "Interval": r["interval"],
+                "Setup": r["setup_type"], "As of": r["scan_run_at"],
+                "Chart": chart_url(r["exchange"], r["symbol"], r["setup_payload"].get("instrument_token")),
+            }
             for r in recent
         ],
+        column_config=_CHART_COLUMN_CONFIG,
         use_container_width=True,
     )
 else:
