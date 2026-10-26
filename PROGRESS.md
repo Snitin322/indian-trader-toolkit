@@ -84,11 +84,26 @@ Read this file first in any new session before touching code. It's the source of
   demerged into `TMPV` (passenger vehicles) and `TMCV` (commercial vehicles). The scanner correctly
   reports it as "not found" rather than silently guessing, per the honesty-over-silent-failure norm.
 
-## Resolved limitation
+## Resolved limitation (fixed twice — see below)
 
-~~Login sessions live only in `st.session_state`~~ — fixed, see "Live verification notes" above.
-Sessions now persist across full page reloads via a `streamlit-cookies-controller` cookie, with the
-DB `sessions` table remaining the actual source of truth (the cookie only carries an opaque token).
+~~Login sessions live only in `st.session_state`~~ — sessions now persist across full page reloads
+via a browser cookie, with the DB `sessions` table remaining the actual source of truth (the cookie
+only carries an opaque token).
+
+**Round 1** used `streamlit-cookies-controller` (a bidirectional custom component). Worked in
+automated/scripted browser testing, but the user reported it live: "every time I restart the app, I
+have to log in and reconnect to the broker again." Root cause: the component's write only confirms
+after an iframe postMessage round-trip completes on the *next* rerun — fine when a script-driven
+click leaves time for that round trip, but a real interactive click immediately followed by
+`st.rerun()` can fire before it settles, silently dropping the cookie write.
+
+**Round 2 (current)**: reading uses `st.context.cookies` — a native, synchronous Streamlit API, no
+component, no round-trip. Writing uses a one-way injected `<script>document.cookie=...</script>` via
+`components.v1.html` — fire-and-forget, no return value to race against. Removed the now-unneeded
+`time.sleep()` workarounds in `pages/0_login.py` and `app.py`'s logout along with the
+`streamlit-cookies-controller` dependency. Live-verified: logged in, did a full server stop/start
+(not just a page reload), and the fresh page load showed "Logged in" + "Broker: connected" with zero
+manual steps — the exact scenario the user reported, now fixed.
 
 ## To resume in a new chat
 

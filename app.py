@@ -14,8 +14,6 @@ session.require_login() internally, but the kite-connected/interval gates
 would otherwise be silently bypassed in the sidebar UI).
 """
 
-import time
-
 import streamlit as st
 
 import config
@@ -39,7 +37,6 @@ else:
         st.success(f"Logged in (user #{user_id})")
         if st.button("Log out"):
             session.clear_session()
-            time.sleep(0.3)  # let the cookie-remove component call flush, same reason as login
             st.rerun()
         st.divider()
         st.caption("Broker: " + ("connected" if kite_connected else "not connected"))

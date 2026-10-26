@@ -7,4 +7,3 @@ pandas>=2.2
 numpy>=1.26
 pytest>=8.0
 python-dotenv>=1.0
-streamlit-cookies-controller>=0.0.4
