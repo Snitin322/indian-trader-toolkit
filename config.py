@@ -4,9 +4,17 @@ environment variables only — never hardcoded here, never committed."""
 import os
 from pathlib import Path
 
+from dotenv import load_dotenv
+
 BASE_DIR = Path(__file__).resolve().parent
 DATA_DIR = BASE_DIR / "data"
 DATA_DIR.mkdir(exist_ok=True)
+
+# Loads BASE_DIR/.env if present (gitignored — see .env.example for the
+# template). Read directly from the file rather than relying on the
+# process's inherited environment, so this works the same way no matter
+# how the server was launched.
+load_dotenv(BASE_DIR / ".env")
 
 DB_PATH = os.environ.get("TRADERAPP_DB_PATH", str(DATA_DIR / "app.db"))
 
