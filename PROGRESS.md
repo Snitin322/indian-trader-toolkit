@@ -1,7 +1,9 @@
 # Build Progress
 
+Repo: https://github.com/Snitin322/indian-trader-toolkit
+
 Full design/rationale: `C:\Users\ashis\.claude\plans\luminous-tinkering-cat.md` (also readable from
-within this repo's history of decisions — see git log once commits start).
+within this repo's history of decisions — see `git log`).
 
 Read this file first in any new session before touching code. It's the source of truth for
 "what's actually been built" — trust it (and `git log`) over anything a conversation summary claims.
@@ -11,7 +13,7 @@ Read this file first in any new session before touching code. It's the source of
 | Phase | What | Status |
 |---|---|---|
 | 0/1 | Foundation — SQLite schema, bcrypt auth, DB-backed sessions, Streamlit page router + gating | **Done** — 14 pytest tests passing, verified live in browser |
-| 2 | Kite Connect per-user OAuth (login flow, encrypted token storage, daily expiry handling) | **Blocked** — needs a real Kite Connect developer app (API key/secret + redirect URL) from the user. Can build against mocks without it, but not test the real redirect flow. |
+| 2 | Kite Connect per-user OAuth (login flow, encrypted token storage, daily expiry handling) | **Code done, 22/22 tests passing** (mocked Kite SDK). **Not yet verified against a real Zerodha account** — needs `KITE_API_KEY`/`KITE_API_SECRET` env vars from a real Kite Connect developer app (developers.kite.trade, ~₹2000/mo) plus a redirect URL registered pointing back at this app, to test the actual browser login-redirect round trip. |
 | 3 | Timeframe-first Scanner (interval-generalized breakout/flag/RSI setups, ORB) | Not started |
 | 4 | Entry timer + Exit planner | Not started |
 | 5 | Time Machine (Monte Carlo + historical backtest) | Not started |
@@ -26,14 +28,18 @@ Read this file first in any new session before touching code. It's the source of
 ## What exists on disk right now
 
 - `app.py` — entrypoint, login gate, page router (gated by logged_in / kite_connected / has_interval)
-- `pages/0_login.py` through `pages/12_mf_copycat.py` — pages 2–7, 9, 12 are stubs ("lands in Phase N");
-  0, 1, 8, 10, 11 have real (if minimal) functionality
+- `pages/0_login.py`, `1_connect_broker.py`, `8_account_settings.py` — real functionality
+- `pages/2_scanner.py` through `12_mf_copycat.py` (minus 8) — still stubs ("lands in Phase N")
 - `auth/` — `app_auth.py` (register/login/logout), `session.py` (st.session_state <-> DB session glue)
 - `storage/` — `db.py`, `crypto.py` (Fernet), `migrations/001_init.sql` (full schema),
   `repositories/users_repo.py`, `user_config_repo.py`, `kite_credentials_repo.py`
-- `tests/` — `auth/test_app_auth.py`, `storage/test_db_and_repos.py` (14 tests, all passing)
-- `core/`, `core/fundamentals/`, `integrations/kite/`, `integrations/fundamentals/` — empty package
-  skeletons only, no logic yet (that's phases 2+)
+- `integrations/kite/` — `env.py` (reads KITE_API_KEY/SECRET from env), `oauth.py` (login-url +
+  request_token->access_token exchange, daily-expiry computation), `client.py` (the one place every
+  other module gets an authenticated KiteConnect instance; raises AuthRequiredError if missing/expired)
+- `tests/` — `auth/`, `storage/`, `integrations/test_kite_oauth.py` (22 tests, all passing, Kite SDK
+  mocked — no real network/credentials needed to run the suite)
+- `core/`, `core/fundamentals/`, `integrations/fundamentals/` — still empty package skeletons, no logic
+  yet (that's phase 3+)
 
 ## Known limitation, not a bug
 
