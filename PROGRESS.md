@@ -13,8 +13,8 @@ Read this file first in any new session before touching code. It's the source of
 | Phase | What | Status |
 |---|---|---|
 | 0/1 | Foundation — SQLite schema, bcrypt auth, DB-backed sessions, Streamlit page router + gating | **Done** — 14 pytest tests passing, verified live in browser |
-| 2 | Kite Connect per-user OAuth (login flow, encrypted token storage, daily expiry handling) | **Code done, 22/22 tests passing** (mocked Kite SDK). **Not yet verified against a real Zerodha account** — needs `KITE_API_KEY`/`KITE_API_SECRET` env vars from a real Kite Connect developer app (developers.kite.trade, ~₹2000/mo) plus a redirect URL registered pointing back at this app, to test the actual browser login-redirect round trip. |
-| 3 | Timeframe-first Scanner (interval-generalized breakout/flag/RSI setups, ORB) | **Code done, 66/66 tests passing total.** Live-verified the UI flow (timeframe gate, mode/exchange/symbol inputs, graceful error handling) against a FAKE Kite session — the actual data-fetching path (`instruments.fetch_equity_universe`, `historical.fetch_historical_bars`) is unverified against real Kite data, same gap as Phase 2. |
+| 2 | Kite Connect per-user OAuth (login flow, encrypted token storage, daily expiry handling) | **Done, verified live against the user's real Zerodha account** (2026-10-26). Real `login_url()` generation, real browser login, real `generate_session()` token exchange all confirmed working. See "Live verification" note below. |
+| 3 | Timeframe-first Scanner (interval-generalized breakout/flag/RSI setups, ORB) | **Done, verified live against real Kite data.** Fetched the real ~9,400-symbol NSE equity universe, pulled real daily bars for TCS/INFY/RELIANCE/HDFCBANK/ICICIBANK, ran the actual UI end-to-end ("Scanned 5 symbols at day; 5 setup hit(s)"). ORB (intraday) mode is coded but not yet live-tested — needs a run during market hours. |
 | 4 | Entry timer + Exit planner | Not started |
 | 5 | Time Machine (Monte Carlo + historical backtest) | Not started |
 | 6 | Risk manager + Budget/position sizer | Not started |
@@ -49,6 +49,22 @@ Read this file first in any new session before touching code. It's the source of
 - `tests/` — 66 tests total, all passing, Kite SDK mocked throughout — no real network/credentials
   needed to run the suite
 - `core/fundamentals/`, `integrations/fundamentals/` — still empty package skeletons (phase 9+)
+
+## Live verification notes (2026-10-26)
+
+- Real Kite Connect app ("Screener," the user's own, confirmed) credentials are in the local
+  `.env` (gitignored, never committed). The full OAuth round trip, instrument universe fetch, and
+  scanner pipeline were run against real data and real results, not just mocks.
+- **Action item for the user**: the actual redirect after a real Zerodha login landed on
+  `http://localhost:3000/callback`, not `http://localhost:8501` as expected — the registered
+  redirect URL on the Kite Connect app (developers.kite.trade) doesn't match this app's port.
+  The token exchange was completed manually this time by lifting the `request_token` out of the
+  dead-end redirect URL; `pages/1_connect_broker.py`'s automatic `st.query_params` handling will
+  NOT work until the redirect URL is updated to `http://localhost:8501` in the Kite Connect app
+  settings. Until fixed, completing a real login requires the same manual workaround.
+- Real-world data quirk, not a bug: TATAMOTORS no longer exists as a plain NSE symbol — Tata Motors
+  demerged into `TMPV` (passenger vehicles) and `TMCV` (commercial vehicles). The scanner correctly
+  reports it as "not found" rather than silently guessing, per the honesty-over-silent-failure norm.
 
 ## Known limitation, not a bug
 
