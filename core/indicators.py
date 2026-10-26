@@ -6,7 +6,7 @@ Every function here is interval-agnostic by construction — callers decide
 what interval the input `bars` came from; nothing here assumes "daily."
 """
 
-from core.types import Bar
+from core.types import INTERVAL_MINUTES, Bar
 
 
 def sma(values: list[float], period: int) -> list[float | None]:
@@ -101,3 +101,25 @@ def resample_bars(bars: list[Bar], bucket_key) -> list[Bar]:
 def iso_week_key(timestamp):
     year, week, _ = timestamp.isocalendar()
     return (year, week)
+
+
+def orb_range_bar_count(watch_interval: str, orb_range_minutes: int) -> int:
+    """How many `watch_interval` bars make up the opening range — e.g. a
+    15-minute range on 5-minute bars is 3 bars. Shared so scanner_rules and
+    entry_timer can never disagree about this."""
+    bar_minutes = INTERVAL_MINUTES.get(watch_interval)
+    if not bar_minutes or bar_minutes <= 0:
+        raise ValueError(f"Unknown interval: {watch_interval}")
+    return max(1, -(-orb_range_minutes // bar_minutes))  # ceil division
+
+
+def opening_range(bars: list[Bar], range_bar_count: int) -> tuple[float, float] | None:
+    """The high/low of the first `range_bar_count` bars of a session.
+    Returns None if there aren't enough bars yet. Shared by
+    core.scanner_rules.orb_breakout (a completed-session scan) and
+    core.entry_timer (an incremental, bar-by-bar watch) so both agree on
+    exactly what "the opening range" means."""
+    if len(bars) < range_bar_count:
+        return None
+    range_bars = bars[:range_bar_count]
+    return max(b.high for b in range_bars), min(b.low for b in range_bars)

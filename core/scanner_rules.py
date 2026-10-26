@@ -9,8 +9,8 @@ daily bars behaves exactly like the original repo's 20-day rules; the same
 rule. That's intentional, not a bug: see the plan for the rationale.
 """
 
-from core.indicators import rsi_wilder, sma
-from core.types import Bar, INTERVAL_MINUTES, ScanParams, Setup
+from core.indicators import opening_range, orb_range_bar_count, rsi_wilder, sma
+from core.types import Bar, ScanParams, Setup
 
 
 def breakout_20d(symbol: str, exchange: str, interval: str, bars: list[Bar], params: ScanParams) -> Setup | None:
@@ -160,17 +160,14 @@ def orb_breakout(
     A hit is the first bar AFTER the range whose CLOSE is at or above the
     range high (the original repo's exact definition: a close-through, not
     an intraday wick-through)."""
-    bar_minutes = INTERVAL_MINUTES.get(watch_interval)
-    if not bar_minutes or bar_minutes <= 0:
-        raise ValueError(f"Unknown orb_watch_interval: {watch_interval}")
-
-    range_bar_count = max(1, -(-params.orb_range_minutes // bar_minutes))  # ceil
+    range_bar_count = orb_range_bar_count(watch_interval, params.orb_range_minutes)
     if len(session_bars) <= range_bar_count:
         return None
 
-    range_bars = session_bars[:range_bar_count]
-    range_high = max(b.high for b in range_bars)
-    range_low = min(b.low for b in range_bars)
+    rng = opening_range(session_bars, range_bar_count)
+    if rng is None:
+        return None
+    range_high, range_low = rng
 
     for bar in session_bars[range_bar_count:]:
         if bar.close >= range_high:

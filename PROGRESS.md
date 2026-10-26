@@ -15,7 +15,7 @@ Read this file first in any new session before touching code. It's the source of
 | 0/1 | Foundation — SQLite schema, bcrypt auth, DB-backed sessions, Streamlit page router + gating | **Done** — 14 pytest tests passing, verified live in browser |
 | 2 | Kite Connect per-user OAuth (login flow, encrypted token storage, daily expiry handling) | **Done, verified live against the user's real Zerodha account** (2026-10-26). Real `login_url()` generation, real browser login, real `generate_session()` token exchange all confirmed working. See "Live verification" note below. |
 | 3 | Timeframe-first Scanner (interval-generalized breakout/flag/RSI setups, ORB) | **Done, verified live against real Kite data.** Fetched the real ~9,400-symbol NSE equity universe, pulled real daily bars for TCS/INFY/RELIANCE/HDFCBANK/ICICIBANK, ran the actual UI end-to-end ("Scanned 5 symbols at day; 5 setup hit(s)"). ORB (intraday) mode is coded but not yet live-tested — needs a run during market hours. |
-| 4 | Entry timer + Exit planner | Not started |
+| 4 | Entry timer + Exit planner | **Done, verified live.** `check_orb_entry` mirrors the scanner's ORB trigger logic incrementally (waiting_for_range/waiting/triggered/expired); `plan_exit` computes stop/target before entry (or-mid/or-low/custom). Live-verified: real TCS LTP fetch (₹2534.6) through Watchlist/Entry/Exit, built a real exit plan (stop ₹2458.56, target ₹2610.64), saved it, confirmed the row in the DB. |
 | 5 | Time Machine (Monte Carlo + historical backtest) | Not started |
 | 6 | Risk manager + Budget/position sizer | Not started |
 | 7 | Broker order ticket + the hard confirmation gate | Not started |
@@ -43,7 +43,14 @@ Read this file first in any new session before touching code. It's the source of
   ORB, generalized over interval per the plan)
 - `pages/2_scanner.py` — real: timeframe picker gate, daily-style/ORB mode, symbol input, results table,
   scan history
-- `storage/repositories/scan_results_repo.py` — per-user scan result persistence
+- `pages/3_watchlist_entry_exit.py` — real: pick a candidate (from a scan hit or manual symbol), check
+  ORB entry status or use current LTP, build and save an exit plan
+- `core/entry_timer.py` — incremental ORB entry status (waiting_for_range/waiting/triggered/expired),
+  shares `core/indicators.py::opening_range()` + `orb_range_bar_count()` with the scanner so they can't
+  disagree about what "the opening range" means
+- `core/exit_planner.py` — stop/target computation (or-mid/or-low/custom stop styles)
+- `storage/repositories/scan_results_repo.py`, `plans_repo.py` — per-user scan result and trade plan
+  persistence
 - `.env` / `.env.example` — config.py now auto-loads `.env` via python-dotenv, so secrets work the same
   regardless of how the server is launched (was previously relying on inherited process env only)
 - `tests/` — 66 tests total, all passing, Kite SDK mocked throughout — no real network/credentials
