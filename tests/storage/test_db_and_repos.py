@@ -71,6 +71,33 @@ def test_expired_kite_token_is_not_returned_as_valid():
     assert kite_credentials_repo.get_valid_access_token(user_id) is None
 
 
+def test_get_token_expiry_returns_stored_value():
+    user_id, _ = app_auth.register("expiry@example.com", "correcthorse")
+    now = datetime.now(timezone.utc)
+    expires_at = now + timedelta(hours=5)
+    kite_credentials_repo.save_token(
+        user_id, "key", "token", None, "AB1", now, expires_at
+    )
+    stored = kite_credentials_repo.get_token_expiry(user_id)
+    assert stored == expires_at
+
+
+def test_get_token_expiry_returns_value_even_if_already_expired():
+    # Used for display ("connected until...") — unlike is_connected(), it
+    # should NOT hide a past expiry.
+    user_id, _ = app_auth.register("expiredexpiry@example.com", "correcthorse")
+    now = datetime.now(timezone.utc)
+    past = now - timedelta(hours=1)
+    kite_credentials_repo.save_token(user_id, "key", "token", None, "AB1", now - timedelta(days=1), past)
+    assert kite_credentials_repo.get_token_expiry(user_id) == past
+    assert not kite_credentials_repo.is_connected(user_id)
+
+
+def test_get_token_expiry_none_when_never_connected():
+    user_id, _ = app_auth.register("neverconnected@example.com", "correcthorse")
+    assert kite_credentials_repo.get_token_expiry(user_id) is None
+
+
 def test_tokens_are_isolated_per_user():
     user_a, _ = app_auth.register("isoa@example.com", "correcthorse")
     user_b, _ = app_auth.register("isob@example.com", "correcthorse")

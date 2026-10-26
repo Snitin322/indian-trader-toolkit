@@ -74,6 +74,25 @@ def is_connected(user_id: int) -> bool:
     return get_valid_access_token(user_id) is not None
 
 
+def get_token_expiry(user_id: int) -> datetime | None:
+    """The stored expiry regardless of whether it's already passed — used
+    for display ("connected until...") rather than the connected/not
+    decision, which stays in is_connected()."""
+    conn = get_connection()
+    try:
+        row = conn.execute(
+            "SELECT token_expires_at FROM kite_credentials WHERE user_id = ?", (user_id,)
+        ).fetchone()
+    finally:
+        conn.close()
+    if not row or not row["token_expires_at"]:
+        return None
+    expires_at = datetime.fromisoformat(row["token_expires_at"])
+    if expires_at.tzinfo is None:
+        expires_at = expires_at.replace(tzinfo=timezone.utc)
+    return expires_at
+
+
 def record_login_attempt(user_id: int) -> None:
     conn = get_connection()
     try:

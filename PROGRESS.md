@@ -97,13 +97,23 @@ after an iframe postMessage round-trip completes on the *next* rerun — fine wh
 click leaves time for that round trip, but a real interactive click immediately followed by
 `st.rerun()` can fire before it settles, silently dropping the cookie write.
 
-**Round 2 (current)**: reading uses `st.context.cookies` — a native, synchronous Streamlit API, no
+**Round 2**: reading uses `st.context.cookies` — a native, synchronous Streamlit API, no
 component, no round-trip. Writing uses a one-way injected `<script>document.cookie=...</script>` via
 `components.v1.html` — fire-and-forget, no return value to race against. Removed the now-unneeded
 `time.sleep()` workarounds in `pages/0_login.py` and `app.py`'s logout along with the
 `streamlit-cookies-controller` dependency. Live-verified: logged in, did a full server stop/start
 (not just a page reload), and the fresh page load showed "Logged in" + "Broker: connected" with zero
-manual steps — the exact scenario the user reported, now fixed.
+manual steps.
+
+**Follow-up UX fix**: user then reported Zerodha asking for credentials "every time" on both the
+shared Browser pane and their own Chrome. Checked the DB directly — the stored connection was valid
+the whole time. Actual cause: `pages/1_connect_broker.py` always showed a "Reconnect with Zerodha"
+button even while already connected, so clicking it (reasonably, to check) sent them to Zerodha's own
+login page, which asks for full credentials whenever that specific browser has no cached Zerodha web
+session — normal Zerodha-side behavior, not a bug in this app, but confusing UX. Fixed by showing the
+actual expiry time ("good until 07:30 AM IST on 27 Oct"), explicit "you do NOT need to do anything
+else" messaging, and tucking the reconnect button into a collapsed expander. Live-verified the new
+copy renders correctly.
 
 ## To resume in a new chat
 
