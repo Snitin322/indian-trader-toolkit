@@ -14,6 +14,8 @@ session.require_login() internally, but the kite-connected/interval gates
 would otherwise be silently bypassed in the sidebar UI).
 """
 
+import time
+
 import streamlit as st
 
 import config
@@ -37,20 +39,35 @@ else:
         st.success(f"Logged in (user #{user_id})")
         if st.button("Log out"):
             session.clear_session()
+            time.sleep(0.3)  # let the cookie-remove component call flush, same reason as login
             st.rerun()
         st.divider()
         st.caption("Broker: " + ("connected" if kite_connected else "not connected"))
         st.caption("Scan timeframe: " + ("set" if has_interval else "not set"))
 
+    # A pending Kite redirect (?request_token=...) must always land on
+    # Connect Broker to be processed, even if kite_connected is already
+    # True from an earlier session today — otherwise a reconnect's
+    # request_token gets stranded in the URL with nowhere to be read.
+    has_pending_kite_callback = bool(st.query_params.get("request_token"))
+
     pages = [
-        st.Page("pages/1_connect_broker.py", title="Connect Broker", icon="🔌", default=not kite_connected),
+        st.Page(
+            "pages/1_connect_broker.py",
+            title="Connect Broker",
+            icon="🔌",
+            default=has_pending_kite_callback or not kite_connected,
+        ),
         st.Page("pages/8_account_settings.py", title="Account Settings", icon="⚙️"),
         st.Page("pages/10_bulk_deals_promoters.py", title="Bulk Deals & Promoter Activity", icon="🏦"),
         st.Page("pages/11_earnings_surprise.py", title="Earnings Surprise", icon="📊"),
     ]
     if kite_connected:
         pages += [
-            st.Page("pages/2_scanner.py", title="Scanner", icon="📈", default=not has_interval),
+            st.Page(
+                "pages/2_scanner.py", title="Scanner", icon="📈",
+                default=not has_interval and not has_pending_kite_callback,
+            ),
             st.Page("pages/3_watchlist_entry_exit.py", title="Watchlist / Entry / Exit", icon="🎯"),
             st.Page("pages/4_time_machine.py", title="Time Machine", icon="🔮"),
             st.Page("pages/5_risk_budget.py", title="Risk & Budget", icon="🛡️"),

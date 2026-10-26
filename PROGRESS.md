@@ -55,22 +55,28 @@ Read this file first in any new session before touching code. It's the source of
 - Real Kite Connect app ("Screener," the user's own, confirmed) credentials are in the local
   `.env` (gitignored, never committed). The full OAuth round trip, instrument universe fetch, and
   scanner pipeline were run against real data and real results, not just mocks.
-- **Action item for the user**: the actual redirect after a real Zerodha login landed on
-  `http://localhost:3000/callback`, not `http://localhost:8501` as expected — the registered
-  redirect URL on the Kite Connect app (developers.kite.trade) doesn't match this app's port.
-  The token exchange was completed manually this time by lifting the `request_token` out of the
-  dead-end redirect URL; `pages/1_connect_broker.py`'s automatic `st.query_params` handling will
-  NOT work until the redirect URL is updated to `http://localhost:8501` in the Kite Connect app
-  settings. Until fixed, completing a real login requires the same manual workaround.
+- **Fixed, found live**: the redirect URL was initially `localhost:3000`, not `:8501` — user
+  corrected it in the Kite Connect app settings. That then exposed a SECOND, more fundamental bug:
+  the Kite login redirect is a full top-level browser navigation (not a Streamlit rerun), which
+  wiped `st.session_state`-based login every time, stranding the `request_token` on a login page
+  that never looks for it. Fixed by adding `streamlit-cookies-controller`-backed persistent
+  sessions (`auth/session.py`) plus `app.py` now force-routing to Connect Broker whenever a
+  `request_token` is pending in the URL, regardless of current connection status. Also had to add
+  a short `time.sleep(0.3)` after every cookie write/remove before `st.rerun()` — without it,
+  Streamlit's forced rerun cuts off the cookie component's browser-side write before it flushes
+  (confirmed by inspecting `document.cookie` directly: the cookie was silently never being set
+  until this was added). **Re-verified end-to-end after the fix**: reconnect → real Zerodha login →
+  automatic redirect-triggered token exchange with NO manual intervention, confirmed via a fresh
+  `token_obtained_at` timestamp in the DB.
 - Real-world data quirk, not a bug: TATAMOTORS no longer exists as a plain NSE symbol — Tata Motors
   demerged into `TMPV` (passenger vehicles) and `TMCV` (commercial vehicles). The scanner correctly
   reports it as "not found" rather than silently guessing, per the honesty-over-silent-failure norm.
 
-## Known limitation, not a bug
+## Resolved limitation
 
-Login sessions live only in `st.session_state`, not a browser cookie — a full page refresh (not a
-Streamlit rerun, an actual F5) logs you out. Documented in `auth/session.py`. Fix later via
-`streamlit-cookies-controller` if it becomes annoying; doesn't block anything else.
+~~Login sessions live only in `st.session_state`~~ — fixed, see "Live verification notes" above.
+Sessions now persist across full page reloads via a `streamlit-cookies-controller` cookie, with the
+DB `sessions` table remaining the actual source of truth (the cookie only carries an opaque token).
 
 ## To resume in a new chat
 
