@@ -1,5 +1,6 @@
 streamlit>=1.36
 kiteconnect>=5.0
+requests>=2.31
 bcrypt>=4.1
 cryptography>=42.0
 pandas>=2.2

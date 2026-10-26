@@ -14,7 +14,7 @@ Read this file first in any new session before touching code. It's the source of
 |---|---|---|
 | 0/1 | Foundation — SQLite schema, bcrypt auth, DB-backed sessions, Streamlit page router + gating | **Done** — 14 pytest tests passing, verified live in browser |
 | 2 | Kite Connect per-user OAuth (login flow, encrypted token storage, daily expiry handling) | **Done, verified live against the user's real Zerodha account** (2026-10-26). Real `login_url()` generation, real browser login, real `generate_session()` token exchange all confirmed working. See "Live verification" note below. |
-| 3 | Timeframe-first Scanner (interval-generalized breakout/flag/RSI setups, ORB) | **Done, verified live against real Kite data.** Fetched the real ~9,400-symbol NSE equity universe, pulled real daily bars for TCS/INFY/RELIANCE/HDFCBANK/ICICIBANK, ran the actual UI end-to-end ("Scanned 5 symbols at day; 5 setup hit(s)"). ORB (intraday) mode is coded but not yet live-tested — needs a run during market hours. |
+| 3 | Timeframe-first Scanner (interval-generalized breakout/flag/RSI setups, ORB) | **Done, verified live against real Kite data.** Fetched the real ~9,400-symbol NSE equity universe, pulled real daily bars for TCS/INFY/RELIANCE/HDFCBANK/ICICIBANK, ran the actual UI end-to-end ("Scanned 5 symbols at day; 5 setup hit(s)"). ORB (intraday) mode is coded but not yet live-tested — needs a run during market hours. **Extended**: scan an entire NSE index/sector universe (Nifty 50, Nifty Bank, Private/PSU Bank, F&O stocks, Smallcap 250, sector indices, 23 universes total) instead of typing symbols by hand — live-verified end-to-end (real NSE fetch of Nifty Bank's 14 constituents, real scan, 4 real hits: AUBANK/IDFCFIRSTB/YESBANK oversold, ICICIBANK breakout_20d). |
 | 4 | Entry timer + Exit planner | **Done, verified live.** `check_orb_entry` mirrors the scanner's ORB trigger logic incrementally (waiting_for_range/waiting/triggered/expired); `plan_exit` computes stop/target before entry (or-mid/or-low/custom). Live-verified: real TCS LTP fetch (₹2534.6) through Watchlist/Entry/Exit, built a real exit plan (stop ₹2458.56, target ₹2610.64), saved it, confirmed the row in the DB. |
 | 5 | Time Machine (Monte Carlo + historical backtest) | Not started |
 | 6 | Risk manager + Budget/position sizer | Not started |
@@ -55,6 +55,11 @@ Read this file first in any new session before touching code. It's the source of
   regardless of how the server is launched (was previously relying on inherited process env only)
 - `tests/` — 66 tests total, all passing, Kite SDK mocked throughout — no real network/credentials
   needed to run the suite
+- `integrations/nse/index_universes.py` — fetches NSE's real index/sector constituent CSVs (Nifty 50,
+  Nifty Bank, Private/PSU Bank, 15+ sector indices, Nifty 500/Smallcap 250/Midcap 150, etc.) and the
+  F&O-eligible stock list; `storage/repositories/index_constituents_repo.py` caches them (24h) so
+  repeated scans don't re-hit NSE every time. Flagged fragile/best-effort like the other NSE-scraped
+  integrations — URLs/format confirmed working live but NSE gives no stability guarantee.
 - `core/fundamentals/`, `integrations/fundamentals/` — still empty package skeletons (phase 9+)
 
 ## Live verification notes (2026-10-26)
