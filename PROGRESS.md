@@ -8,6 +8,36 @@ within this repo's history of decisions — see `git log`).
 Read this file first in any new session before touching code. It's the source of truth for
 "what's actually been built" — trust it (and `git log`) over anything a conversation summary claims.
 
+## RESUME HERE — in-progress work, paused mid-task
+
+The plan file above was just rewritten to cover two new pieces of work, approved but **not yet
+started in committed code**:
+1. **Part 1 (do this first): per-user Zerodha API credentials.** Each app user will register their
+   own Kite Connect developer app (own api_key/api_secret) instead of everyone sharing the one in
+   `.env` — a real compliance reason (see plan's Context section), not a style preference.
+2. **Part 2 (after Part 1 ships): the Live Scanner Dashboard** — multiple user-built/predefined
+   scanners, pinned to a dashboard, updated by a polling background worker (~60s), not click-to-run.
+   This is the actual USP the user wants (Chartink-style), explicitly NOT blending in fundamental
+   data, explicitly deferring WhatsApp/Telegram alert dispatch and true WebSocket streaming.
+
+**Current repo state: clean, `git log` HEAD is `02848e9`, all 103 tests passing.** I had started Part
+1 — added `storage/migrations/004_per_user_kite_api.sql` (`ALTER TABLE kite_credentials ADD COLUMN
+encrypted_kite_api_secret BLOB`) and edited `storage/db.py`'s migration runner to run statements
+individually (since `ALTER TABLE ADD COLUMN` isn't idempotent like `CREATE TABLE IF NOT EXISTS`,
+and the runner re-executes every migration file on every app boot). **That db.py change had a real
+bug** — naively splitting migration files on `;` breaks multi-line `CREATE TABLE` statements (hit
+`sqlite3.OperationalError: near "kite_api_key": syntax error` immediately, 103/103 tests failed) —
+root cause not yet diagnosed. Both changes were reverted/deleted before pausing, so the repo is back
+to a known-good state; **nothing from Part 1 is committed yet.**
+
+**To resume**: re-derive the `storage/db.py` idempotency fix properly before retrying — likely need a
+real SQL statement splitter (respecting `--` comments and string literals) rather than a naive
+`.split(";")`, or a simpler alternative: query `PRAGMA table_info(kite_credentials)` in Python and
+only run the `ALTER TABLE` line if the column doesn't already exist, leaving `executescript()` for
+everything else unchanged (probably the simpler, lower-risk fix — reconsider this first). Then
+continue with Part 1's build order in the plan file: repo functions + tests → `oauth.py`/`client.py`
+→ `pages/1_connect_broker.py` setup form → live verification with a second real user → Part 2.
+
 ## Status
 
 | Phase | What | Status |
