@@ -61,7 +61,11 @@ Read this file first in any new session before touching code. It's the source of
   repeated scans don't re-hit NSE every time. Flagged fragile/best-effort like the other NSE-scraped
   integrations — URLs/format confirmed working live but NSE gives no stability guarantee.
 - `integrations/kite/links.py` — builds Kite Web chart deep links (`chart_url()`); scan results (both
-  a fresh run and scan history) render a clickable "Open chart" column via it
+  a fresh run and scan history) render a clickable "Open chart" column via it. **Known limitation,
+  confirmed live**: the chart always opens at the viewer's own default/last-used timeframe, not the
+  interval the scan was run at — tried several likely query-string/path variants against a real
+  logged-in Kite Web session (user tested), none worked. Looks like a Kite Web UI preference, not
+  something exposed on this URL. No workaround currently.
 - `core/fundamentals/`, `integrations/fundamentals/` — still empty package skeletons (phase 9+)
 
 ## Live verification notes (2026-10-26)
